@@ -1,0 +1,20 @@
+# clasp
+*.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.env
+.nyc_output
+*.lock
+
+build
+coverage
+node_modules
+tmp
+.clasprc.json
+
+# user
+.clasp.json
+creds.json
