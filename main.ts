@@ -1,3 +1,4 @@
+import Sheet = GoogleAppsScript.Spreadsheet.Sheet;
 import URLFetchRequestOptions = GoogleAppsScript.URL_Fetch.URLFetchRequestOptions;
 
 function main() {
@@ -12,7 +13,7 @@ function main() {
 }
 
 function getAccessToken(clientId: string | null, clientSecret: string | null) {
-    const base64Str = Utilities.base64Encode(`${clientId}:${clientSecret}`, Utilities.Charset.UTF_8);
+    const base64Str = Utilities.base64Encode(`${clientId}:${clientSecret}`);
     const options: URLFetchRequestOptions = {
         method: 'post',
         headers: {
@@ -30,8 +31,25 @@ function getAccessToken(clientId: string | null, clientSecret: string | null) {
 function backupPlaylist(accessToken: string, playlistId: string) {
     const url = `https://api.spotify.com/v1/playlists/${playlistId}`;
     const playlistData = getPlaylistData(accessToken, url);
-    console.log(playlistData.name);
-    processTracks(accessToken, playlistData.tracks);
+    const playlistName = playlistData.name;
+    Logger.log(`Backing up '${playlistName}'...`);
+    const currentDate = Utilities.formatDate(new Date(), "JST", "yyyy/MM/dd");
+    const newSheetName = `${playlistName} ${currentDate}`;
+    const activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    if (activeSpreadsheet.getSheetByName(newSheetName)) {
+        Logger.log(`Sheet name '${newSheetName}' already exists.`);
+        return;
+    }
+    const sheet = activeSpreadsheet.insertSheet(newSheetName);
+    sheet.deleteRows(2, 999);
+    sheet.deleteColumns(5, 21);
+    sheet.setColumnWidths(1, 1, 50);
+    sheet.setColumnWidths(2, 4, 200);
+    const range = sheet.getRange(1, 1, 1, 5);
+    range.setValues([['No', 'Artist Name', 'Track Name', 'Album Name', 'Track URI']]);
+    processTracks(accessToken, playlistData.tracks, sheet);
+    range.setFontWeight('bold');
+    sheet.setFrozenRows(1);
 }
 
 function getPlaylistData(accessToken: string, url: string) {
@@ -46,13 +64,24 @@ function getPlaylistData(accessToken: string, url: string) {
     return JSON.parse(response.getContentText());
 }
 
-function processTracks(accessToken: string, tracks: any) {
+function processTracks(accessToken: string, tracks: any, sheet: Sheet) {
+    let lastRow = sheet.getLastRow();
     const items = tracks.items;
+    const range = sheet.getRange(lastRow + 1, 1, items.length, 5);
+    const values: string[][] = [];
     for (const item of items) {
-        console.log(`${item.track.artists[0].name} - ${item.track.name}`);
+        const row = [
+            lastRow++,
+            item.track.artists[0].name,
+            item.track.name,
+            item.track.album.name,
+            item.track.uri,
+        ];
+        values.push(row);
     }
+    range.setValues(values);
     if (tracks.next) {
         const playlistData = getPlaylistData(accessToken, tracks.next);
-        processTracks(accessToken, playlistData);
+        processTracks(accessToken, playlistData, sheet);
     }
 }
