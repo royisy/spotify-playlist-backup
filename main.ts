@@ -7,9 +7,7 @@ function main() {
     const clientSecret = scriptProperties.getProperty('client_secret');
     const playlistIds = scriptProperties.getProperty('playlist_ids')!.split(',');
     const accessToken = getAccessToken(clientId, clientSecret);
-    for (const playlistId of playlistIds) {
-        backupPlaylist(accessToken, playlistId);
-    }
+    playlistIds.forEach((playlistId, index) => backupPlaylist(accessToken, playlistId, index));
 }
 
 function getAccessToken(clientId: string | null, clientSecret: string | null) {
@@ -28,7 +26,7 @@ function getAccessToken(clientId: string | null, clientSecret: string | null) {
     return content.access_token;
 }
 
-function backupPlaylist(accessToken: string, playlistId: string) {
+function backupPlaylist(accessToken: string, playlistId: string, index: number) {
     const url = `https://api.spotify.com/v1/playlists/${playlistId}`;
     const playlistData = getPlaylistData(accessToken, url);
     const playlistName = playlistData.name;
@@ -40,7 +38,7 @@ function backupPlaylist(accessToken: string, playlistId: string) {
         Logger.log(`Sheet name '${newSheetName}' already exists.`);
         return;
     }
-    const sheet = activeSpreadsheet.insertSheet(newSheetName);
+    const sheet = activeSpreadsheet.insertSheet(newSheetName, index);
     sheet.deleteRows(2, 999);
     sheet.deleteColumns(5, 21);
     sheet.setColumnWidths(1, 1, 50);
